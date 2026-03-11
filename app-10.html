@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Markit.ai — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+:root{
+  --bg:#07090f;
+  --s1:#0d1117;
+  --s2:#131923;
+  --s3:#1a2233;
+  --s4:#1e2840;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.13);
+  --green:#1db954;
+  --green-dim:rgba(29,185,84,0.1);
+  --green-border:rgba(29,185,84,0.22);
+  --red:#f04;
+  --blue:#3b82f6;
+  --text:#dce8f5;
+  --text-muted:rgba(220,232,245,0.55);
+  --text-faint:rgba(220,232,245,0.28);
+  --heading:'Plus Jakarta Sans',sans-serif;
+  --body:'Manrope',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --sidebar-w:224px;
+  --topbar-h:54px;
+  --ticker-h:32px;
+  --radius:10px;
+  --radius-sm:7px;
+}
+/* LIGHT MODE */
+body.light{
+  --bg:#f3f4f8;--s1:#ffffff;--s2:#f0f2f6;--s3:#e6eaf2;--s4:#dde2ec;
+  --border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.13);
+  --text:#0c1420;--text-muted:rgba(12,20,32,0.55);--text-faint:rgba(12,20,32,0.3);
+}
+body{font-family:var(--body);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;transition:background 0.25s,color 0.25s}
+
+/* ===== TICKER ===== */
+.app-ticker{
+  height:var(--ticker-h);background:var(--s1);
+  border-bottom:1px solid var(--border);overflow:hidden;
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  display:flex;align-items:center;
+}
+.ticker-track{
+  display:flex;width:max-content;
+  animation:scroll-t 38s linear infinite;
+  height:var(--ticker-h);align-items:center;
+}
+.ticker-track:hover{animation-play-state:paused}
+@keyframes scroll-t{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ti{display:inline-flex;align-items:center;gap:7px;padding:0 18px;border-right:1px solid var(--border);height:var(--ticker-h);white-space:nowrap;font-family:var(--mono);font-size:10px}
+.ti-sym{color:var(--text-faint);font-weight:500}
+.ti-p{color:var(--text);font-weight:600}
+.ti-c{padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700}
+.ti-c.u{color:var(--green);background:rgba(29,185,84,0.1)}
+.ti-c.d{color:#f04;background:rgba(255,0,68,0.1)}
+
+/* ===== TOPBAR ===== */
+.topbar{
+  height:var(--topbar-h);background:var(--s1);
+  border-bottom:1px solid var(--border);
+  position:fixed;top:var(--ticker-h);left:0;right:0;z-index:300;
+  display:flex;align-items:center;padding:0 16px;gap:12px;
+}
+.tb-logo-area{
+  width:var(--sidebar-w);flex-shrink:0;
+  display:flex;align-items:center;gap:9px;
+  text-decoration:none;
+}
+.logo-icon{
+  width:30px;height:30px;flex-shrink:0;
+  background:linear-gradient(135deg,#1db954 0%,#0f8f3a 100%);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--heading);font-size:13px;font-weight:800;color:#050a05;
+}
+.logo-text{font-family:var(--heading);font-size:14px;font-weight:800;color:var(--text);letter-spacing:-0.3px}
+.logo-text span{color:var(--green)}
+.tb-search{flex:1;max-width:440px;position:relative}
+.tb-search input{
+  width:100%;height:36px;
+  background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:0 12px 0 34px;color:var(--text);font-size:12px;
+  font-family:var(--body);outline:none;transition:all 0.18s;
+}
+.tb-search input::placeholder{color:var(--text-faint)}
+.tb-search input:focus{border-color:var(--green-border);background:var(--s3);box-shadow:0 0 0 3px rgba(29,185,84,0.07)}
+.tb-search-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-faint);pointer-events:none}
+.tb-right{display:flex;align-items:center;gap:6px;margin-left:auto}
+/* Icon button */
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:var(--radius-sm);
+  background:none;border:1px solid transparent;
+  cursor:pointer;font-size:16px;transition:all 0.15s;
+  color:var(--text-muted);
+}
+.icon-btn:hover{background:var(--s2);border-color:var(--border);color:var(--text)}
+.icon-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+/* User chip */
+.user-chip{
+  display:flex;align-items:center;gap:8px;
+  padding:4px 10px 4px 4px;border-radius:100px;
+  border:1px solid var(--border);cursor:pointer;
+  background:none;transition:all 0.15s;
+  min-height:36px;
+}
+.user-chip:hover{background:var(--s2);border-color:var(--border2)}
+.user-chip:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.user-av{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,#1db954,#0f8f3a);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--heading);font-size:11px;font-weight:700;color:#050a05;
+  flex-shrink:0;overflow:hidden;
+}
+.user-av img{width:100%;height:100%;object-fit:cover}
+.user-name{font-size:12px;font-weight:600;color:var(--text-muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== LAYOUT ===== */
+.app-layout{
+  display:flex;
+  height:100vh;
+  padding-top:calc(var(--ticker-h) + var(--topbar-h));
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--s1);border-right:1px solid var(--border);
+  overflow-y:auto;overflow-x:hidden;
+  position:fixed;
+  top:calc(var(--ticker-h) + var(--topbar-h));
+  bottom:0;left:0;z-index:200;
+}
+.sb-group-label{
+  font-family:var(--mono);font-size:8.5px;font-weight:600;
+  color:var(--text-faint);letter-spacing:0.12em;text-transform:uppercase;
+  padding:14px 16px 5px;margin-top:2px;
+}
+.sb-item{
+  display:flex;align-items:center;gap:10px;
+  padding:0 14px;height:38px;width:100%;
+  font-size:13px;font-weight:500;color:var(--text-muted);
+  background:none;border:none;border-left:2px solid transparent;
+  cursor:pointer;font-family:var(--body);
+  text-align:left;transition:all 0.15s;
+  text-decoration:none;
+}
+.sb-item:hover{background:rgba(29,185,84,0.05);color:var(--text)}
+.sb-item:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.sb-item.active{
+  background:rgba(29,185,84,0.08);
+  border-left-color:var(--green);
+  color:var(--green);font-weight:600;
+}
+.sb-ic{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sb-badge{
+  margin-left:auto;font-family:var(--mono);font-size:8px;font-weight:700;
+  padding:2px 5px;border-radius:4px;
+}
+.sb-badge.live{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border)}
+.sb-badge.pro{color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)}
+.sb-divider{height:1px;background:var(--border);margin:6px 0}
+
+/* ===== MAIN ===== */
+main{
+  margin-left:var(--sidebar-w);flex:1;
+  overflow-y:auto;overflow-x:hidden;
+  padding:20px 20px 80px;
+}
+
+/* ===== PAGE ===== */
+.page{display:none}
+.page.active{display:block;animation:pgIn 0.3s cubic-bezier(0.16,1,0.3,1) both}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Page header */
+.pg-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+.pg-title{font-family:var(--heading);font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.pg-subtitle{font-size:12px;color:var(--text-muted);margin-top:3px}
+.pg-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* Generic buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:0 16px;height:36px;border-radius:var(--radius-sm);
+  font-size:12px;font-weight:600;cursor:pointer;
+  font-family:var(--body);text-decoration:none;transition:all 0.18s;
+  border:1px solid var(--border);background:none;color:var(--text-muted);
+}
+.btn:hover{background:var(--s2);color:var(--text);border-color:var(--border2)}
+.btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.btn.green{background:var(--green-dim);border-color:var(--green-border);color:var(--green)}
+.btn.green:hover{background:rgba(29,185,84,0.18)}
+.btn.solid{background:var(--green);color:#050a05;border-color:transparent}
+.btn.solid:hover{background:#22d960;box-shadow:0 6px 20px rgba(29,185,84,0.3)}
+
+/* ===== OVERVIEW CARDS ===== */
+.ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.ov-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 16px;
+  cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;
+}
+.ov-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.ov-card.green-top::before{background:var(--green)}
+.ov-card.red-top::before{background:#f04}
+.ov-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+.ov-sym{font-family:var(--mono);font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;font-weight:500}
+.ov-price{font-family:var(--mono);font-size:18px;font-weight:600;margin-bottom:3px}
+.ov-price.up{color:var(--green)}.ov-price.dn{color:#f04}
+.ov-chg{font-size:11px;font-weight:700}
+.ov-chg.up{color:var(--green)}.ov-chg.dn{color:#f04}
+
+/* ===== CONTENT GRID ===== */
+.content-grid{display:grid;grid-template-columns:1fr 300px;gap:14px}
+
+/* ===== TABS ===== */
+.tabs{
+  display:flex;gap:2px;background:var(--s2);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:3px;width:fit-content;margin-bottom:14px;
+}
+.tab-btn{
+  padding:0 15px;height:32px;border-radius:6px;
+  border:none;background:none;
+  color:var(--text-muted);font-family:var(--body);font-size:12px;
+  font-weight:600;cursor:pointer;transition:all 0.18s;
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{background:var(--green);color:#050a05;box-shadow:0 2px 8px rgba(29,185,84,0.2)}
+.tab-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ===== NEWS CARDS ===== */
+.news-feed{display:flex;flex-direction:column;gap:8px}
+.news-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 16px;
+  cursor:pointer;transition:all 0.18s;display:flex;gap:12px;
+}
+.news-card:hover{border-color:var(--border2);transform:translateX(2px)}
+.news-card:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.nc-tag{
+  font-family:var(--mono);font-size:8px;font-weight:700;
+  color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);
+  padding:3px 7px;border-radius:4px;flex-shrink:0;
+  white-space:nowrap;height:fit-content;margin-top:2px;
+  letter-spacing:0.04em;text-transform:uppercase;
+}
+.nc-body{flex:1;min-width:0}
+.nc-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:5px}
+.nc-summary{font-size:11px;color:var(--text-muted);line-height:1.7;margin-bottom:7px}
+.nc-ai{
+  background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.12);
+  border-radius:6px;padding:7px 10px;
+  font-size:11px;color:var(--text-muted);line-height:1.65;margin-bottom:7px;
+}
+.nc-ai b{color:var(--blue)}
+.nc-meta{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--text-faint)}
+.nc-src{color:var(--text-muted);font-weight:500}
+
+/* ===== RIGHT PANEL ===== */
+.right-panel{display:flex;flex-direction:column;gap:10px}
+.rp-box{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.rp-head{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.rp-title{font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px;font-family:var(--heading)}
+.rp-live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.8s ease infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.rp-action{font-size:11px;color:var(--green);cursor:pointer;background:none;border:none;font-family:var(--body);padding:0;transition:opacity 0.15s}
+.rp-action:hover{opacity:0.7}
+.rp-body{padding:10px 12px}
+
+/* Watchlist row */
+.wl-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 8px;border-radius:6px;cursor:pointer;transition:background 0.15s;
+}
+.wl-row:hover{background:var(--s2)}
+.wl-sym{font-family:var(--mono);font-size:12px;font-weight:600}
+.wl-name{font-size:10px;color:var(--text-faint);margin-top:1px}
+.wl-price{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right}
+.wl-chg{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;margin-top:2px;display:inline-block}
+.wl-chg.up{color:var(--green);background:rgba(29,185,84,0.1)}
+.wl-chg.dn{color:#f04;background:rgba(255,0,68,0.1)}
+
+/* AI box inside panel */
+.mini-ai{padding:10px 12px}
+.mini-ai-msg{
+  font-size:11px;color:var(--text-muted);line-height:1.7;
+  background:var(--s2);border:1px solid var(--border);border-radius:7px;
+  padding:9px;margin-bottom:9px;
+}
+.mini-ai-msg b{color:var(--blue)}
+.mini-ai-row{display:flex;gap:6px}
+.mini-ai-input{
+  flex:1;height:34px;background:var(--s2);border:1px solid var(--border);
+  border-radius:6px;padding:0 10px;color:var(--text);font-size:11px;
+  font-family:var(--body);outline:none;transition:all 0.15s;
+}
+.mini-ai-input::placeholder{color:var(--text-faint)}
+.mini-ai-input:focus{border-color:var(--green-border)}
+.mini-ai-send{
+  width:34px;height:34px;background:var(--green);color:#050a05;
+  border:none;border-radius:6px;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;
+}
+.mini-ai-send:hover{background:#22d960}
+.mini-ai-send:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ===== DATA TABLE ===== */
+.data-table{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.dt-thead{
+  display:grid;padding:10px 16px;
+  background:var(--s2);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:9px;font-weight:600;
+  color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;
+}
+.dt-row{
+  display:grid;padding:11px 16px;
+  border-bottom:1px solid var(--border);
+  align-items:center;cursor:pointer;transition:background 0.12s;
+}
+.dt-row:last-child{border-bottom:none}
+.dt-row:hover{background:rgba(29,185,84,0.03)}
+.dt-row:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.dt-sym{font-family:var(--mono);font-size:12px;font-weight:700}
+.dt-name{font-size:10px;color:var(--text-faint);margin-top:2px}
+.dt-price{font-family:var(--mono);font-size:13px;font-weight:600}
+.dt-price.up{color:var(--green)}.dt-price.dn{color:#f04}
+.dt-chg{font-size:11px;font-weight:700}
+.dt-chg.up{color:var(--green)}.dt-chg.dn{color:#f04}
+.dt-cap{font-family:var(--mono);font-size:10px;color:var(--text-faint)}
+.cols4{grid-template-columns:2fr 1.2fr 1fr 1fr}
+.cols5{grid-template-columns:2fr 1.2fr 1fr 1fr 1fr}
+
+/* ===== AI PAGE ===== */
+.ai-page-wrap{max-width:700px}
+.ai-chat-box{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px}
+.aichat-header{background:var(--s2);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.aichat-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.8s ease infinite}
+.aichat-title{font-family:var(--heading);font-size:13px;font-weight:700}
+.aichat-body{padding:14px;display:flex;flex-direction:column;gap:9px;max-height:420px;overflow-y:auto}
+.aichat-body::-webkit-scrollbar{width:4px}
+.aichat-body::-webkit-scrollbar-track{background:transparent}
+.aichat-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.msg-user{
+  background:var(--s3);border-radius:10px 10px 3px 10px;
+  padding:9px 13px;font-size:12px;align-self:flex-end;max-width:82%;
+}
+.msg-bot{
+  background:linear-gradient(135deg,rgba(59,130,246,0.07),rgba(29,185,84,0.05));
+  border:1px solid rgba(59,130,246,0.13);
+  border-radius:3px 10px 10px 10px;
+  padding:9px 13px;font-size:12px;max-width:90%;
+  color:var(--text-muted);line-height:1.7;
+}
+.msg-bot b{color:var(--blue)}
+.msg-loading{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-faint);padding:6px}
+.dot-anim span{animation:dot-b 1.2s ease-in-out infinite;display:inline-block;font-size:16px;line-height:1}
+.dot-anim span:nth-child(2){animation-delay:0.2s}
+.dot-anim span:nth-child(3){animation-delay:0.4s}
+@keyframes dot-b{0%,80%,100%{opacity:0.2;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.ai-chips-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.ai-chip{
+  font-size:11px;background:var(--s2);border:1px solid var(--border);
+  border-radius:100px;padding:0 13px;height:30px;
+  color:var(--text-muted);cursor:pointer;transition:all 0.15s;
+  font-family:var(--body);display:inline-flex;align-items:center;
+}
+.ai-chip:hover{border-color:var(--green-border);color:var(--green);background:var(--green-dim)}
+.ai-chip:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.ai-input-bar{display:flex;gap:8px}
+.ai-main-input{
+  flex:1;height:44px;background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0 14px;color:var(--text);
+  font-size:13px;font-family:var(--body);outline:none;transition:all 0.18s;
+}
+.ai-main-input::placeholder{color:var(--text-faint)}
+.ai-main-input:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(29,185,84,0.07)}
+.ai-send-btn{
+  height:44px;padding:0 20px;background:var(--green);color:#050a05;
+  border:none;border-radius:var(--radius);cursor:pointer;
+  font-size:13px;font-weight:700;font-family:var(--body);
+  transition:all 0.18s;white-space:nowrap;
+}
+.ai-send-btn:hover{background:#22d960;box-shadow:0 6px 20px rgba(29,185,84,0.3)}
+.ai-send-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ===== WATCHLIST PAGE ===== */
+.wl-add-bar{display:flex;gap:8px;margin-bottom:14px}
+.wl-input{
+  flex:1;height:42px;background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0 14px;color:var(--text);
+  font-size:13px;font-family:var(--body);outline:none;transition:all 0.18s;
+}
+.wl-input::placeholder{color:var(--text-faint)}
+.wl-input:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(29,185,84,0.07)}
+.wl-full-row{
+  display:flex;align-items:center;padding:12px 16px;
+  border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background 0.12s;tabindex:0;
+}
+.wl-full-row:last-child{border-bottom:none}
+.wl-full-row:hover{background:rgba(29,185,84,0.03)}
+.wl-full-row:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.wl-del{
+  margin-left:auto;width:28px;height:28px;border-radius:6px;
+  background:none;border:1px solid transparent;cursor:pointer;
+  color:var(--text-faint);font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.wl-del:hover{background:rgba(255,0,68,0.08);border-color:rgba(255,0,68,0.15);color:#f04}
+.wl-del:focus-visible{outline:2px solid #f04;outline-offset:2px}
+
+/* ===== SPINNER ===== */
+.spinner{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin 0.65s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-state{padding:32px;text-align:center;color:var(--text-faint);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+
+/* ===== AUTH OVERLAY ===== */
+.auth-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(4,6,10,0.88);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.auth-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:16px;padding:36px 32px;
+  max-width:400px;width:100%;
+  box-shadow:0 40px 80px rgba(0,0,0,0.5);
+}
+.auth-brand{display:flex;align-items:center;gap:9px;margin-bottom:24px}
+.auth-h{font-family:var(--heading);font-size:22px;font-weight:800;letter-spacing:-0.8px;margin-bottom:7px}
+.auth-sub{font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:22px}
+.auth-feats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:22px}
+.auth-feat{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:8px;padding:9px 12px;
+  font-size:12px;color:var(--text-muted);
+  display:flex;align-items:center;gap:7px;
+}
+/* Google button */
+.google-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;height:48px;border-radius:var(--radius);
+  background:var(--text);color:var(--bg);border:none;
+  font-family:var(--heading);font-size:14px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;margin-bottom:14px;
+}
+body.light .google-btn{background:var(--s3);color:var(--text);border:1px solid var(--border2)}
+.google-btn:hover{opacity:0.9;transform:translateY(-1px)}
+.google-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.auth-divider{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.auth-div-line{flex:1;height:1px;background:var(--border)}
+.auth-div-txt{font-family:var(--mono);font-size:9px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.08em}
+/* Text inputs */
+.auth-input{
+  width:100%;height:46px;background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0 14px;color:var(--text);
+  font-size:13px;font-family:var(--body);outline:none;
+  transition:all 0.18s;margin-bottom:9px;display:block;
+}
+.auth-input::placeholder{color:var(--text-faint)}
+.auth-input:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(29,185,84,0.07)}
+.auth-err{
+  color:#f04;font-size:12px;padding:8px 12px;background:rgba(255,0,68,0.07);
+  border:1px solid rgba(255,0,68,0.15);border-radius:7px;
+  margin-bottom:9px;display:none;
+}
+.auth-submit{
+  width:100%;height:48px;border-radius:var(--radius);
+  background:var(--green);color:#050a05;border:none;
+  font-family:var(--heading);font-size:14px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;margin-bottom:10px;
+}
+.auth-submit:hover{background:#22d960;transform:translateY(-1px);box-shadow:0 8px 24px rgba(29,185,84,0.3)}
+.auth-submit:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.auth-skip{
+  display:block;width:100%;background:none;border:none;
+  font-size:12px;color:var(--text-faint);cursor:pointer;
+  font-family:var(--body);text-decoration:underline;text-align:center;
+  padding:6px;transition:color 0.15s;
+}
+.auth-skip:hover{color:var(--text-muted)}
+.auth-skip:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ===== MOBILE NAV ===== */
+.mob-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--s1);border-top:1px solid var(--border);z-index:300;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.mob-nav-inner{display:flex;justify-content:space-around;padding:4px 4px 2px}
+.mob-ni{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:8px 10px;border-radius:8px;
+  background:none;border:none;font-family:var(--body);
+  min-width:56px;transition:all 0.15s;
+}
+.mob-ni:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.mob-ni-ic{font-size:18px}
+.mob-ni-lbl{font-size:9px;font-weight:600;color:var(--text-faint)}
+.mob-ni.active .mob-ni-lbl{color:var(--green)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  :root{--sidebar-w:0px}
+  .sidebar{display:none}
+  .tb-logo-area{width:auto}
+  .tb-search{max-width:180px}
+  main{margin-left:0;padding:14px 14px 72px}
+  .ov-grid{grid-template-columns:1fr 1fr}
+  .content-grid{grid-template-columns:1fr}
+  .right-panel{display:none}
+  .mob-nav{display:block}
+  .cols4{grid-template-columns:2fr 1fr 1fr}
+  .cols5{grid-template-columns:2fr 1fr 1fr}
+}
+@media(max-width:480px){
+  .ov-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .auth-feats{grid-template-columns:1fr 1fr}
+  .auth-card{padding:28px 20px}
+  .ai-chips-row .ai-chip{font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="app-ticker" aria-label="Live market ticker" role="marquee">
+  <div class="ticker-track">
+    <div class="ti"><span class="ti-sym">NIFTY</span><span class="ti-p">22,431</span><span class="ti-c u">▲1.21%</span></div>
+    <div class="ti"><span class="ti-sym">SENSEX</span><span class="ti-p">73,961</span><span class="ti-c u">▲0.89%</span></div>
+    <div class="ti"><span class="ti-sym">BTC</span><span class="ti-p">$83,241</span><span class="ti-c u">▲2.41%</span></div>
+    <div class="ti"><span class="ti-sym">ETH</span><span class="ti-p">$1,921</span><span class="ti-c d">▼0.82%</span></div>
+    <div class="ti"><span class="ti-sym">GOLD</span><span class="ti-p">$2,912</span><span class="ti-c u">▲0.61%</span></div>
+    <div class="ti"><span class="ti-sym">USD/INR</span><span class="ti-p">86.42</span><span class="ti-c d">▼0.12%</span></div>
+    <div class="ti"><span class="ti-sym">RELIANCE</span><span class="ti-p">₹1,243</span><span class="ti-c u">▲1.82%</span></div>
+    <div class="ti"><span class="ti-sym">INFOSYS</span><span class="ti-p">₹1,891</span><span class="ti-c u">▲3.21%</span></div>
+    <div class="ti"><span class="ti-sym">S&P500</span><span class="ti-p">5,614</span><span class="ti-c u">▲0.43%</span></div>
+    <div class="ti"><span class="ti-sym">OIL</span><span class="ti-p">$74.12</span><span class="ti-c d">▼1.12%</span></div>
+    <div class="ti"><span class="ti-sym">SOL</span><span class="ti-p">$134.20</span><span class="ti-c u">▲4.21%</span></div>
+    <div class="ti"><span class="ti-sym">NVIDIA</span><span class="ti-p">$124.20</span><span class="ti-c u">▲2.12%</span></div>
+    <!-- duplicate -->
+    <div class="ti"><span class="ti-sym">NIFTY</span><span class="ti-p">22,431</span><span class="ti-c u">▲1.21%</span></div>
+    <div class="ti"><span class="ti-sym">SENSEX</span><span class="ti-p">73,961</span><span class="ti-c u">▲0.89%</span></div>
+    <div class="ti"><span class="ti-sym">BTC</span><span class="ti-p">$83,241</span><span class="ti-c u">▲2.41%</span></div>
+    <div class="ti"><span class="ti-sym">ETH</span><span class="ti-p">$1,921</span><span class="ti-c d">▼0.82%</span></div>
+    <div class="ti"><span class="ti-sym">GOLD</span><span class="ti-p">$2,912</span><span class="ti-c u">▲0.61%</span></div>
+    <div class="ti"><span class="ti-sym">USD/INR</span><span class="ti-p">86.42</span><span class="ti-c d">▼0.12%</span></div>
+    <div class="ti"><span class="ti-sym">RELIANCE</span><span class="ti-p">₹1,243</span><span class="ti-c u">▲1.82%</span></div>
+    <div class="ti"><span class="ti-sym">INFOSYS</span><span class="ti-p">₹1,891</span><span class="ti-c u">▲3.21%</span></div>
+    <div class="ti"><span class="ti-sym">S&P500</span><span class="ti-p">5,614</span><span class="ti-c u">▲0.43%</span></div>
+    <div class="ti"><span class="ti-sym">OIL</span><span class="ti-p">$74.12</span><span class="ti-c d">▼1.12%</span></div>
+    <div class="ti"><span class="ti-sym">SOL</span><span class="ti-p">$134.20</span><span class="ti-c u">▲4.21%</span></div>
+    <div class="ti"><span class="ti-sym">NVIDIA</span><span class="ti-p">$124.20</span><span class="ti-c u">▲2.12%</span></div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar" role="banner">
+  <a href="index.html" class="tb-logo-area" aria-label="Markit.ai Home">
+    <span style="font-family:var(--heading);font-weight:800;font-size:18px;letter-spacing:-0.8px;line-height:1;display:flex;align-items:center"><span style="color:var(--text)">M.</span><span style="color:#1db954">ai</span></span>
+  </a>
+  <div class="tb-search" role="search">
+    <span class="tb-search-ic" aria-hidden="true">🔍</span>
+    <input type="search" placeholder="Search stocks, crypto, news..." aria-label="Search markets">
+  </div>
+  <div class="tb-right">
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle theme">🌙</button>
+    <button class="icon-btn" aria-label="Notifications" title="Notifications">🔔</button>
+    <button class="user-chip" id="userChip" onclick="showAuthOverlay()" aria-label="User account" role="button">
+      <div class="user-av" id="userAv" aria-hidden="true">?</div>
+      <span class="user-name" id="userName">Sign in</span>
+    </button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar" role="navigation" aria-label="Main navigation">
+  <div class="sb-group-label">Overview</div>
+  <button class="sb-item active" onclick="gotoPage('dashboard',this)" aria-label="Dashboard" aria-current="page">
+    <span class="sb-ic" aria-hidden="true">📊</span> Dashboard
+  </button>
+  <button class="sb-item" onclick="gotoPage('news',this)" aria-label="News Feed">
+    <span class="sb-ic" aria-hidden="true">📰</span> News Feed
+    <span class="sb-badge live">LIVE</span>
+  </button>
+  <button class="sb-item" onclick="gotoPage('ai',this)" aria-label="AI Analysis">
+    <span class="sb-ic" aria-hidden="true">🤖</span> AI Analysis
+  </button>
+
+  <div class="sb-divider" role="separator"></div>
+  <div class="sb-group-label">Markets</div>
+  <button class="sb-item" onclick="gotoPage('stocks',this)" aria-label="Stocks">
+    <span class="sb-ic" aria-hidden="true">📈</span> Stocks
+  </button>
+  <button class="sb-item" onclick="gotoPage('crypto',this)" aria-label="Crypto">
+    <span class="sb-ic" aria-hidden="true">₿</span> Crypto
+  </button>
+  <button class="sb-item" onclick="gotoPage('commodities',this)" aria-label="Commodities">
+    <span class="sb-ic" aria-hidden="true">🛢️</span> Commodities
+  </button>
+  <button class="sb-item" onclick="gotoPage('forex',this)" aria-label="Forex">
+    <span class="sb-ic" aria-hidden="true">💱</span> Forex
+  </button>
+
+  <div class="sb-divider" role="separator"></div>
+  <div class="sb-group-label">Personal</div>
+  <button class="sb-item" onclick="gotoPage('watchlist',this)" aria-label="Watchlist">
+    <span class="sb-ic" aria-hidden="true">⭐</span> Watchlist
+  </button>
+  <button class="sb-item" onclick="gotoPage('alerts',this)" aria-label="Alerts — Pro feature">
+    <span class="sb-ic" aria-hidden="true">🔔</span> Alerts
+    <span class="sb-badge pro">PRO</span>
+  </button>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main id="main-content" role="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="pg-dashboard" aria-label="Dashboard">
+    <div class="pg-header">
+      <div>
+        <h1 class="pg-title" id="dash-greeting">Market Overview</h1>
+        <div class="pg-subtitle" id="dash-date"></div>
+      </div>
+      <div class="pg-actions">
+        <button class="btn" onclick="gotoPage('watchlist',null)" aria-label="Go to Watchlist">⭐ Watchlist</button>
+        <button class="btn green" onclick="gotoPage('ai',null)" aria-label="Open AI Analysis">🤖 Ask AI</button>
+      </div>
+    </div>
+
+    <div class="ov-grid" role="list" aria-label="Market overview">
+      <div class="ov-card green-top" role="listitem" tabindex="0" aria-label="NIFTY 50, 22,431.20, up 1.21 percent">
+        <div class="ov-sym">NIFTY 50</div>
+        <div class="ov-price up">22,431.20</div>
+        <div class="ov-chg up">▲ +268.14 (+1.21%)</div>
+      </div>
+      <div class="ov-card green-top" role="listitem" tabindex="0" aria-label="Bitcoin, 83,241 dollars, up 2.41 percent">
+        <div class="ov-sym">BTC / USD</div>
+        <div class="ov-price up">$83,241</div>
+        <div class="ov-chg up">▲ +1,959 (+2.41%)</div>
+      </div>
+      <div class="ov-card green-top" role="listitem" tabindex="0" aria-label="Gold, 2,912 dollars, up 0.61 percent">
+        <div class="ov-sym">GOLD (XAU)</div>
+        <div class="ov-price up">$2,912.40</div>
+        <div class="ov-chg up">▲ +17.60 (+0.61%)</div>
+      </div>
+      <div class="ov-card red-top" role="listitem" tabindex="0" aria-label="Crude Oil, 74.12 dollars, down 1.12 percent">
+        <div class="ov-sym">CRUDE OIL</div>
+        <div class="ov-price dn">$74.12</div>
+        <div class="ov-chg dn">▼ -0.84 (-1.12%)</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <div>
+        <div class="tabs" role="tablist" aria-label="News category tabs">
+          <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchNewsTab(this,'top')">Top Stories</button>
+          <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'india')">India</button>
+          <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'global')">Global</button>
+          <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'crypto')">Crypto</button>
+        </div>
+        <div class="news-feed" id="dash-news" role="feed" aria-label="Market news"></div>
+      </div>
+
+      <div class="right-panel">
+        <div class="rp-box">
+          <div class="rp-head">
+            <div class="rp-title"><div class="rp-live-dot" aria-hidden="true"></div> AI Brief</div>
+          </div>
+          <div class="mini-ai">
+            <div class="mini-ai-msg"><b>🤖 Markit AI:</b> Markets bullish — RBI holds 6.5%, IT sector outperforming. INFY up 3.2% on AI deal wins. Watch US Fed at 8PM IST. Oil weak on inventory data.</div>
+            <div class="mini-ai-row">
+              <input class="mini-ai-input" id="miniAiQ" placeholder="Ask about markets..." aria-label="Ask AI a question"
+                onkeydown="if(event.key==='Enter'){var v=this.value.trim();if(v){gotoPage('ai',null);setTimeout(function(){askFromMini(v)},300)}}">
+              <button class="mini-ai-send" aria-label="Send to AI"
+                onclick="var v=document.getElementById('miniAiQ').value.trim();if(v){gotoPage('ai',null);setTimeout(function(){askFromMini(v)},300)}">→</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rp-box">
+          <div class="rp-head">
+            <div class="rp-title">⭐ Watchlist</div>
+            <button class="rp-action" onclick="gotoPage('watchlist',null)" aria-label="Manage watchlist">Manage →</button>
+          </div>
+          <div class="rp-body" id="rp-watchlist"></div>
+        </div>
+
+        <div class="rp-box">
+          <div class="rp-head"><div class="rp-title">🔥 Trending</div></div>
+          <div class="rp-body" id="trending-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEWS FEED -->
+  <div class="page" id="pg-news" aria-label="News Feed">
+    <div class="pg-header">
+      <div><h1 class="pg-title">News Feed</h1><div class="pg-subtitle">Curated stories with AI summaries</div></div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="News category">
+      <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchNewsTab(this,'all','full')">All</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'markets','full')">Markets</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'crypto','full')">Crypto</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'economy','full')">Economy</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchNewsTab(this,'global','full')">Global</button>
+    </div>
+    <div class="news-feed" id="full-news" role="feed" aria-label="News articles"></div>
+  </div>
+
+  <!-- AI ANALYSIS -->
+  <div class="page" id="pg-ai" aria-label="AI Analysis">
+    <div class="pg-header">
+      <div><h1 class="pg-title">AI Analysis</h1><div class="pg-subtitle">Ask anything about markets, stocks or economics</div></div>
+    </div>
+    <div class="ai-page-wrap">
+      <div class="ai-chat-box">
+        <div class="aichat-header">
+          <div class="aichat-dot" aria-hidden="true"></div>
+          <span class="aichat-title">Markit AI</span>
+          <span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-faint)">Powered by Claude</span>
+        </div>
+        <div class="aichat-body" id="ai-history" role="log" aria-label="Chat history" aria-live="polite">
+          <div class="msg-bot"><b>🤖 Markit AI:</b> Hello! I can help you with market analysis, stock research, crypto trends, economic concepts, or any financial question. What would you like to know?</div>
+        </div>
+      </div>
+      <div class="ai-chips-row" aria-label="Suggested questions">
+        <button class="ai-chip" onclick="askAI(this.textContent)" aria-label="Ask: What's moving NIFTY today?">What's moving NIFTY today?</button>
+        <button class="ai-chip" onclick="askAI(this.textContent)" aria-label="Ask: Is BTC a good buy now?">Is BTC a good buy now?</button>
+        <button class="ai-chip" onclick="askAI(this.textContent)" aria-label="Ask: Explain repo rate simply">Explain repo rate simply</button>
+        <button class="ai-chip" onclick="askAI(this.textContent)" aria-label="Ask: Best IT stocks this quarter?">Best IT stocks this quarter?</button>
+        <button class="ai-chip" onclick="askAI(this.textContent)" aria-label="Ask: How does Fed rate affect India?">How does Fed rate affect India?</button>
+      </div>
+      <div class="ai-input-bar">
+        <input class="ai-main-input" id="aiInput" placeholder="Ask about any stock, market or concept..."
+          aria-label="Ask AI about markets" onkeydown="if(event.key==='Enter')askAI()">
+        <button class="ai-send-btn" onclick="askAI()" aria-label="Send question to AI">Ask AI →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCKS -->
+  <div class="page" id="pg-stocks" aria-label="Stocks">
+    <div class="pg-header"><div><h1 class="pg-title">Stocks</h1><div class="pg-subtitle">Indian & US equity markets</div></div></div>
+    <div class="tabs" role="tablist" aria-label="Stock market">
+      <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchSubTab(this,'stk','india')">🇮🇳 India (NSE)</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchSubTab(this,'stk','us')">🇺🇸 US Markets</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchSubTab(this,'stk','idx')">📊 Indices</button>
+    </div>
+    <div id="stk-india" class="data-table" role="table" aria-label="Indian stocks">
+      <div class="dt-thead cols4" role="row"><span role="columnheader">Symbol</span><span role="columnheader">Price</span><span role="columnheader">24h Change</span><span role="columnheader">Mkt Cap</span></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">RELIANCE</div><div class="dt-name">Reliance Industries</div></div><div class="dt-price up">₹1,243.50</div><div class="dt-chg up">▲ +1.82%</div><div class="dt-cap">₹16.8L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">TCS</div><div class="dt-name">Tata Consultancy</div></div><div class="dt-price up">₹4,021.00</div><div class="dt-chg up">▲ +0.91%</div><div class="dt-cap">₹14.6L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">INFY</div><div class="dt-name">Infosys Ltd</div></div><div class="dt-price up">₹1,891.25</div><div class="dt-chg up">▲ +3.21%</div><div class="dt-cap">₹7.9L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">HDFCBANK</div><div class="dt-name">HDFC Bank</div></div><div class="dt-price dn">₹1,672.40</div><div class="dt-chg dn">▼ -0.41%</div><div class="dt-cap">₹12.7L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">ICICIBANK</div><div class="dt-name">ICICI Bank</div></div><div class="dt-price up">₹1,312.80</div><div class="dt-chg up">▲ +1.12%</div><div class="dt-cap">₹9.2L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">WIPRO</div><div class="dt-name">Wipro Ltd</div></div><div class="dt-price dn">₹284.60</div><div class="dt-chg dn">▼ -0.71%</div><div class="dt-cap">₹2.9L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">BAJFINANCE</div><div class="dt-name">Bajaj Finance</div></div><div class="dt-price up">₹8,912.00</div><div class="dt-chg up">▲ +2.41%</div><div class="dt-cap">₹5.4L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">SUNPHARMA</div><div class="dt-name">Sun Pharma</div></div><div class="dt-price up">₹1,782.50</div><div class="dt-chg up">▲ +1.31%</div><div class="dt-cap">₹4.3L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">TATAMOTORS</div><div class="dt-name">Tata Motors</div></div><div class="dt-price dn">₹682.90</div><div class="dt-chg dn">▼ -1.21%</div><div class="dt-cap">₹2.5L Cr</div></div>
+      <div class="dt-row cols4" role="row" tabindex="0"><div><div class="dt-sym">MARUTI</div><div class="dt-name">Maruti Suzuki</div></div><div class="dt-price up">₹12,840.00</div><div class="dt-chg up">▲ +0.82%</div><div class="dt-cap">₹3.9L Cr</div></div>
+    </div>
+    <div id="stk-us" class="data-table" style="display:none">
+      <div class="dt-thead cols4"><span>Symbol</span><span>Price</span><span>24h Change</span><span>Mkt Cap</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">AAPL</div><div class="dt-name">Apple Inc</div></div><div class="dt-price dn">$228.40</div><div class="dt-chg dn">▼ -0.51%</div><div class="dt-cap">$3.5T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NVDA</div><div class="dt-name">NVIDIA Corp</div></div><div class="dt-price up">$124.20</div><div class="dt-chg up">▲ +2.12%</div><div class="dt-cap">$3.0T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">MSFT</div><div class="dt-name">Microsoft Corp</div></div><div class="dt-price up">$412.80</div><div class="dt-chg up">▲ +0.71%</div><div class="dt-cap">$3.1T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">GOOGL</div><div class="dt-name">Alphabet Inc</div></div><div class="dt-price up">$196.30</div><div class="dt-chg up">▲ +1.41%</div><div class="dt-cap">$2.4T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">AMZN</div><div class="dt-name">Amazon.com</div></div><div class="dt-price up">$218.90</div><div class="dt-chg up">▲ +1.91%</div><div class="dt-cap">$2.3T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">TSLA</div><div class="dt-name">Tesla Inc</div></div><div class="dt-price dn">$248.10</div><div class="dt-chg dn">▼ -2.31%</div><div class="dt-cap">$793B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">META</div><div class="dt-name">Meta Platforms</div></div><div class="dt-price up">$612.40</div><div class="dt-chg up">▲ +0.91%</div><div class="dt-cap">$1.6T</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NFLX</div><div class="dt-name">Netflix Inc</div></div><div class="dt-price up">$982.60</div><div class="dt-chg up">▲ +1.21%</div><div class="dt-cap">$424B</div></div>
+    </div>
+    <div id="stk-idx" class="data-table" style="display:none">
+      <div class="dt-thead cols4"><span>Index</span><span>Value</span><span>Change</span><span>Region</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NIFTY 50</div><div class="dt-name">NSE India</div></div><div class="dt-price up">22,431.20</div><div class="dt-chg up">▲ +1.21%</div><div class="dt-cap">🇮🇳 India</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">SENSEX</div><div class="dt-name">BSE India</div></div><div class="dt-price up">73,961.31</div><div class="dt-chg up">▲ +0.89%</div><div class="dt-cap">🇮🇳 India</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">S&P 500</div><div class="dt-name">NYSE/NASDAQ</div></div><div class="dt-price up">5,614.80</div><div class="dt-chg up">▲ +0.43%</div><div class="dt-cap">🇺🇸 USA</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NASDAQ 100</div><div class="dt-name">NASDAQ</div></div><div class="dt-price up">17,841.00</div><div class="dt-chg up">▲ +0.82%</div><div class="dt-cap">🇺🇸 USA</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">FTSE 100</div><div class="dt-name">London SE</div></div><div class="dt-price up">8,621.40</div><div class="dt-chg up">▲ +0.51%</div><div class="dt-cap">🇬🇧 UK</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NIKKEI 225</div><div class="dt-name">Tokyo SE</div></div><div class="dt-price up">38,912.00</div><div class="dt-chg up">▲ +1.41%</div><div class="dt-cap">🇯🇵 Japan</div></div>
+    </div>
+  </div>
+
+  <!-- CRYPTO -->
+  <div class="page" id="pg-crypto" aria-label="Crypto">
+    <div class="pg-header"><div><h1 class="pg-title">Crypto</h1><div class="pg-subtitle">Live cryptocurrency prices</div></div></div>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true" onclick="switchSubTab(this,'cr','top')">🔥 Top 20</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchSubTab(this,'cr','defi')">🏦 DeFi</button>
+      <button class="tab-btn" role="tab" aria-selected="false" onclick="switchSubTab(this,'cr','l1')">⛓️ Layer 1s</button>
+    </div>
+    <div id="cr-top" class="data-table">
+      <div class="dt-thead cols5"><span>Asset</span><span>Price</span><span>24h</span><span>7d</span><span>Mkt Cap</span></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">BTC</div><div class="dt-name">Bitcoin</div></div><div class="dt-price up">$83,241</div><div class="dt-chg up">▲+2.41%</div><div class="dt-chg up">▲+8.2%</div><div class="dt-cap">$1.64T</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">ETH</div><div class="dt-name">Ethereum</div></div><div class="dt-price dn">$1,921</div><div class="dt-chg dn">▼-0.82%</div><div class="dt-chg dn">▼-3.1%</div><div class="dt-cap">$231B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">SOL</div><div class="dt-name">Solana</div></div><div class="dt-price up">$134.20</div><div class="dt-chg up">▲+4.21%</div><div class="dt-chg up">▲+12.4%</div><div class="dt-cap">$69B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">XRP</div><div class="dt-name">Ripple</div></div><div class="dt-price dn">$2.41</div><div class="dt-chg dn">▼-1.31%</div><div class="dt-chg up">▲+2.8%</div><div class="dt-cap">$139B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">BNB</div><div class="dt-name">BNB</div></div><div class="dt-price up">$612.40</div><div class="dt-chg up">▲+1.12%</div><div class="dt-chg up">▲+4.1%</div><div class="dt-cap">$89B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">DOGE</div><div class="dt-name">Dogecoin</div></div><div class="dt-price up">$0.1824</div><div class="dt-chg up">▲+3.12%</div><div class="dt-chg up">▲+9.2%</div><div class="dt-cap">$26B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">ADA</div><div class="dt-name">Cardano</div></div><div class="dt-price up">$0.842</div><div class="dt-chg up">▲+1.82%</div><div class="dt-chg dn">▼-1.4%</div><div class="dt-cap">$30B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">AVAX</div><div class="dt-name">Avalanche</div></div><div class="dt-price dn">$34.20</div><div class="dt-chg dn">▼-2.12%</div><div class="dt-chg dn">▼-5.1%</div><div class="dt-cap">$14B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">LINK</div><div class="dt-name">Chainlink</div></div><div class="dt-price up">$18.20</div><div class="dt-chg up">▲+3.41%</div><div class="dt-chg up">▲+7.8%</div><div class="dt-cap">$11B</div></div>
+      <div class="dt-row cols5" tabindex="0"><div><div class="dt-sym">MATIC</div><div class="dt-name">Polygon</div></div><div class="dt-price up">$0.521</div><div class="dt-chg up">▲+2.81%</div><div class="dt-chg up">▲+6.3%</div><div class="dt-cap">$5B</div></div>
+    </div>
+    <div id="cr-defi" class="data-table" style="display:none">
+      <div class="dt-thead cols4"><span>Asset</span><span>Price</span><span>24h</span><span>TVL</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">UNI</div><div class="dt-name">Uniswap</div></div><div class="dt-price dn">$12.40</div><div class="dt-chg dn">▼-1.12%</div><div class="dt-cap">$6.2B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">AAVE</div><div class="dt-name">Aave</div></div><div class="dt-price up">$241.80</div><div class="dt-chg up">▲+4.21%</div><div class="dt-cap">$12.1B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">MKR</div><div class="dt-name">Maker</div></div><div class="dt-price up">$1,842</div><div class="dt-chg up">▲+2.81%</div><div class="dt-cap">$1.6B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">CRV</div><div class="dt-name">Curve DAO</div></div><div class="dt-price dn">$0.412</div><div class="dt-chg dn">▼-2.41%</div><div class="dt-cap">$524M</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">COMP</div><div class="dt-name">Compound</div></div><div class="dt-price dn">$61.20</div><div class="dt-chg dn">▼-0.82%</div><div class="dt-cap">$492M</div></div>
+    </div>
+    <div id="cr-l1" class="data-table" style="display:none">
+      <div class="dt-thead cols4"><span>Chain</span><span>Price</span><span>24h</span><span>Mkt Cap</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">ETH</div><div class="dt-name">Ethereum</div></div><div class="dt-price dn">$1,921</div><div class="dt-chg dn">▼-0.82%</div><div class="dt-cap">$231B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">SOL</div><div class="dt-name">Solana</div></div><div class="dt-price up">$134.20</div><div class="dt-chg up">▲+4.21%</div><div class="dt-cap">$69B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">BNB</div><div class="dt-name">BNB Chain</div></div><div class="dt-price up">$612.40</div><div class="dt-chg up">▲+1.12%</div><div class="dt-cap">$89B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">ADA</div><div class="dt-name">Cardano</div></div><div class="dt-price up">$0.842</div><div class="dt-chg up">▲+1.82%</div><div class="dt-cap">$30B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">AVAX</div><div class="dt-name">Avalanche</div></div><div class="dt-price dn">$34.20</div><div class="dt-chg dn">▼-2.12%</div><div class="dt-cap">$14B</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NEAR</div><div class="dt-name">NEAR Protocol</div></div><div class="dt-price up">$4.82</div><div class="dt-chg up">▲+3.82%</div><div class="dt-cap">$5.2B</div></div>
+    </div>
+  </div>
+
+  <!-- COMMODITIES -->
+  <div class="page" id="pg-commodities" aria-label="Commodities">
+    <div class="pg-header"><div><h1 class="pg-title">Commodities</h1><div class="pg-subtitle">Energy, metals & agriculture</div></div></div>
+    <div class="data-table">
+      <div class="dt-thead cols4"><span>Commodity</span><span>Price</span><span>24h</span><span>Unit</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">GOLD</div><div class="dt-name">XAU/USD</div></div><div class="dt-price up">$2,912.40</div><div class="dt-chg up">▲+0.61%</div><div class="dt-cap">per oz</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">SILVER</div><div class="dt-name">XAG/USD</div></div><div class="dt-price up">$32.41</div><div class="dt-chg up">▲+1.21%</div><div class="dt-cap">per oz</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">CRUDE OIL</div><div class="dt-name">WTI</div></div><div class="dt-price dn">$74.12</div><div class="dt-chg dn">▼-1.12%</div><div class="dt-cap">per barrel</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">BRENT</div><div class="dt-name">Brent Crude</div></div><div class="dt-price dn">$77.84</div><div class="dt-chg dn">▼-0.92%</div><div class="dt-cap">per barrel</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">NAT GAS</div><div class="dt-name">Natural Gas</div></div><div class="dt-price dn">$1.82</div><div class="dt-chg dn">▼-2.41%</div><div class="dt-cap">per MMBtu</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">COPPER</div><div class="dt-name">COMEX</div></div><div class="dt-price up">$4.82</div><div class="dt-chg up">▲+0.92%</div><div class="dt-cap">per lb</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">PLATINUM</div><div class="dt-name">NYMEX</div></div><div class="dt-price up">$942.10</div><div class="dt-chg up">▲+0.41%</div><div class="dt-cap">per oz</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">WHEAT</div><div class="dt-name">CBOT</div></div><div class="dt-price dn">$5.42</div><div class="dt-chg dn">▼-0.82%</div><div class="dt-cap">per bushel</div></div>
+    </div>
+  </div>
+
+  <!-- FOREX -->
+  <div class="page" id="pg-forex" aria-label="Forex">
+    <div class="pg-header"><div><h1 class="pg-title">Forex</h1><div class="pg-subtitle">Live currency pairs</div></div></div>
+    <div class="data-table">
+      <div class="dt-thead cols4"><span>Pair</span><span>Rate</span><span>24h</span><span>Region</span></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">USD/INR</div><div class="dt-name">Dollar / Rupee</div></div><div class="dt-price dn">86.42</div><div class="dt-chg dn">▼-0.12%</div><div class="dt-cap">🇮🇳 India</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">EUR/USD</div><div class="dt-name">Euro / Dollar</div></div><div class="dt-price up">1.0842</div><div class="dt-chg up">▲+0.31%</div><div class="dt-cap">🇪🇺 Europe</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">GBP/USD</div><div class="dt-name">Pound / Dollar</div></div><div class="dt-price up">1.2941</div><div class="dt-chg up">▲+0.21%</div><div class="dt-cap">🇬🇧 UK</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">USD/JPY</div><div class="dt-name">Dollar / Yen</div></div><div class="dt-price dn">148.42</div><div class="dt-chg dn">▼-0.41%</div><div class="dt-cap">🇯🇵 Japan</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">AUD/USD</div><div class="dt-name">Aussie / Dollar</div></div><div class="dt-price up">0.6421</div><div class="dt-chg up">▲+0.18%</div><div class="dt-cap">🇦🇺 Australia</div></div>
+      <div class="dt-row cols4" tabindex="0"><div><div class="dt-sym">USD/CAD</div><div class="dt-name">Dollar / Loonie</div></div><div class="dt-price dn">1.3641</div><div class="dt-chg dn">▼-0.09%</div><div class="dt-cap">🇨🇦 Canada</div></div>
+    </div>
+  </div>
+
+  <!-- WATCHLIST -->
+  <div class="page" id="pg-watchlist" aria-label="Watchlist">
+    <div class="pg-header"><div><h1 class="pg-title">Watchlist</h1><div class="pg-subtitle">Your tracked assets</div></div></div>
+    <div class="wl-add-bar">
+      <input class="wl-input" id="wlInput" type="text" placeholder="Add symbol — e.g. INFY, BTC, GOLD, NIFTY..." aria-label="Add asset to watchlist" onkeydown="if(event.key==='Enter')addToWatchlist()">
+      <button class="btn solid" onclick="addToWatchlist()" aria-label="Add to watchlist" style="height:42px;padding:0 20px;border-radius:10px">+ Add</button>
+    </div>
+    <div class="data-table" id="wl-table" aria-label="Watchlist table">
+      <div class="dt-thead cols4"><span>Symbol</span><span>Price</span><span>24h Change</span><span style="text-align:right">Remove</span></div>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="page" id="pg-alerts" aria-label="Alerts">
+    <div class="pg-header"><div><h1 class="pg-title">Price Alerts</h1><div class="pg-subtitle">Get notified at your target price</div></div></div>
+    <div style="text-align:center;padding:60px 20px;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius)">
+      <div style="font-size:48px;margin-bottom:16px" aria-hidden="true">🔔</div>
+      <div style="font-family:var(--heading);font-size:18px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px">Smart Price Alerts — Coming with Pro</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:24px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.7">Get notified the moment any stock or crypto hits your target. Set multiple alerts per asset.</div>
+      <button class="btn solid" style="margin:0 auto;height:44px;padding:0 24px;border-radius:10px" aria-label="Join Pro waitlist">Join Pro waitlist →</button>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mob-nav" aria-label="Mobile navigation">
+  <div class="mob-nav-inner">
+    <button class="mob-ni active" onclick="gotoPage('dashboard',this)" aria-label="Dashboard" aria-current="page">
+      <div class="mob-ni-ic" aria-hidden="true">📊</div><div class="mob-ni-lbl">Home</div>
+    </button>
+    <button class="mob-ni" onclick="gotoPage('news',this)" aria-label="News Feed">
+      <div class="mob-ni-ic" aria-hidden="true">📰</div><div class="mob-ni-lbl">News</div>
+    </button>
+    <button class="mob-ni" onclick="gotoPage('ai',this)" aria-label="AI Analysis">
+      <div class="mob-ni-ic" aria-hidden="true">🤖</div><div class="mob-ni-lbl">AI</div>
+    </button>
+    <button class="mob-ni" onclick="gotoPage('stocks',this)" aria-label="Stocks">
+      <div class="mob-ni-ic" aria-hidden="true">📈</div><div class="mob-ni-lbl">Stocks</div>
+    </button>
+    <button class="mob-ni" onclick="gotoPage('watchlist',this)" aria-label="Watchlist">
+      <div class="mob-ni-ic" aria-hidden="true">⭐</div><div class="mob-ni-lbl">Watchlist</div>
+    </button>
+  </div>
+</nav>
+
+<!-- AUTH OVERLAY -->
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-label="Sign in to Markit.ai">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span style="font-family:var(--heading);font-weight:800;font-size:18px;letter-spacing:-0.8px;line-height:1;display:flex;align-items:center"><span style="color:var(--text)">M.</span><span style="color:#1db954">ai</span></span>
+    </div>
+    <h2 class="auth-h">Welcome back 👋</h2>
+    <p class="auth-sub">Sign in to sync your watchlist and get personalised market insights across all your devices.</p>
+    <div class="auth-feats" aria-label="Features">
+      <div class="auth-feat"><span aria-hidden="true">📊</span> Live data</div>
+      <div class="auth-feat"><span aria-hidden="true">🤖</span> AI analysis</div>
+      <div class="auth-feat"><span aria-hidden="true">⭐</span> Watchlist sync</div>
+      <div class="auth-feat"><span aria-hidden="true">📰</span> Daily brief</div>
+    </div>
+    <button class="google-btn" onclick="signInGoogle()" aria-label="Sign in with Google">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-divider"><div class="auth-div-line"></div><span class="auth-div-txt">or email</span><div class="auth-div-line"></div></div>
+    <label for="authEmail" class="sr-only">Email address</label>
+    <input class="auth-input" type="email" id="authEmail" placeholder="Email address" autocomplete="email" aria-label="Email address">
+    <label for="authPass" class="sr-only">Password</label>
+    <input class="auth-input" type="password" id="authPass" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <div class="auth-err" id="authErr" role="alert" aria-live="polite"></div>
+    <button class="auth-submit" onclick="signInEmail()" aria-label="Sign in or create account">Sign in / Create account</button>
+    <button class="auth-skip" onclick="skipAuth()" aria-label="Skip sign in and browse without account">Skip for now — browse without signing in</button>
+  </div>
+</div>
+
+<style>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}</style>
+
+<script>
+/* ============ FIREBASE ============ */
+firebase.initializeApp({
+  apiKey:'AIzaSyCcwq0e_GNmaEUdifjkQPeOL46lvcgS2JE',
+  authDomain:'markit-ai-81aae.firebaseapp.com',
+  projectId:'markit-ai-81aae',
+  storageBucket:'markit-ai-81aae.firebasestorage.app',
+  messagingSenderId:'742376998048',
+  appId:'1:742376998048:web:485cdd64c6335d7d5235c5'
+});
+var auth=firebase.auth();
+var gProvider=new firebase.auth.GoogleAuthProvider();
+var GEMINI_KEY='AIzaSyA8XEXImY58vHVZHejb-kLZk5OwShnm4qk';
+
+/* ============ THEME ============ */
+var isDark=localStorage.getItem('mk_theme')!=='light';
+function applyTheme(){
+  document.body.classList.toggle('light',!isDark);
+  document.getElementById('themeBtn').textContent=isDark?'☀️':'🌙';
+  document.getElementById('themeBtn').setAttribute('aria-label',isDark?'Switch to light mode':'Switch to dark mode');
+  localStorage.setItem('mk_theme',isDark?'dark':'light');
+}
+function toggleTheme(){isDark=!isDark;applyTheme()}
+applyTheme();
+
+/* ============ DATE GREETING ============ */
+var now=new Date();
+var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var dEl=document.getElementById('dash-date');
+if(dEl)dEl.textContent=days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+
+/* ============ AUTH ============ */
+auth.onAuthStateChanged(function(u){
+  if(u){
+    var n=(u.displayName||u.email||'User').split(' ')[0];
+    document.getElementById('userName').textContent=n;
+    var av=document.getElementById('userAv');
+    if(u.photoURL){av.innerHTML='<img src="'+u.photoURL+'" alt="'+n+'\'s avatar">'}
+    else{av.textContent=n[0].toUpperCase()}
+    document.getElementById('authOverlay').style.display='none';
+    var gr=document.getElementById('dash-greeting');
+    var h=now.getHours();
+    if(gr)gr.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+n+' 👋';
+  } else {
+    document.getElementById('userName').textContent='Sign in';
+    document.getElementById('userAv').textContent='?';
+  }
+});
+
+auth.getRedirectResult().then(function(result){
+  if(result&&result.user){
+    document.getElementById('authOverlay').style.display='none';
+  }
+}).catch(function(e){console.log('redirect error:',e.code)});
+
+function showAuthOverlay(){document.getElementById('authOverlay').style.display='flex'}
+function skipAuth(){document.getElementById('authOverlay').style.display='none';localStorage.setItem('mk_skip','1')}
+
+function signInGoogle(){
+  var btn=document.querySelector('.google-btn');
+  btn.textContent='⏳ Redirecting...';btn.disabled=true;
+  auth.signInWithRedirect(gProvider).catch(function(e){
+    btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Continue with Google';
+    btn.disabled=false;showAuthErr(e.message);
+  });
+}
+
+function signInEmail(){
+  var e=document.getElementById('authEmail').value.trim();
+  var p=document.getElementById('authPass').value;
+  if(!e||!p){showAuthErr('Please enter your email and password');return}
+  var btn=document.querySelector('.auth-submit');btn.textContent='Signing in...';btn.disabled=true;
+  auth.signInWithEmailAndPassword(e,p)
+    .catch(function(err){
+      if(err.code==='auth/user-not-found'||err.code==='auth/invalid-credential'){
+        return auth.createUserWithEmailAndPassword(e,p);
+      }throw err;
+    })
+    .catch(function(e2){showAuthErr(e2.message)})
+    .finally(function(){btn.textContent='Sign in / Create account';btn.disabled=false});
+}
+
+function showAuthErr(m){var el=document.getElementById('authErr');el.textContent=m;el.style.display='block'}
+
+setTimeout(function(){
+  if(!auth.currentUser&&!localStorage.getItem('mk_skip')){
+    document.getElementById('authOverlay').style.display='flex';
+  } else {
+    document.getElementById('authOverlay').style.display='none';
+  }
+},500);
+
+/* ============ PAGE NAV ============ */
+var currentPage='dashboard';
+function gotoPage(id,trigger){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  var pg=document.getElementById('pg-'+id);
+  if(pg)pg.classList.add('active');
+  currentPage=id;
+
+  // Sidebar active
+  document.querySelectorAll('.sb-item').forEach(function(i){
+    i.classList.remove('active');
+    i.removeAttribute('aria-current');
+  });
+  if(trigger&&trigger.classList&&trigger.classList.contains('sb-item')){
+    trigger.classList.add('active');
+    trigger.setAttribute('aria-current','page');
+  }
+
+  // Mobile nav active
+  document.querySelectorAll('.mob-ni').forEach(function(i){
+    i.classList.remove('active');
+    i.removeAttribute('aria-current');
+  });
+  if(trigger&&trigger.classList&&trigger.classList.contains('mob-ni')){
+    trigger.classList.add('active');
+    trigger.setAttribute('aria-current','page');
+  }
+
+  // Page-specific
+  if(id==='dashboard')renderDashNews();
+  if(id==='news')renderFullNews();
+  if(id==='watchlist')renderWatchlist();
+}
+
+/* ============ TAB SWITCHERS ============ */
+function switchNewsTab(el,cat,ctx){
+  var parent=el.closest('.tabs');
+  parent.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');b.setAttribute('aria-selected','false')});
+  el.classList.add('active');el.setAttribute('aria-selected','true');
+  if(ctx==='full')renderFullNews(cat);else renderDashNews(cat);
+}
+
+function switchSubTab(el,prefix,id){
+  var parent=el.closest('.tabs');
+  parent.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');b.setAttribute('aria-selected','false')});
+  el.classList.add('active');el.setAttribute('aria-selected','true');
+  // Hide all panels with prefix
+  document.querySelectorAll('[id^="'+prefix+'-"]').forEach(function(p){p.style.display='none'});
+  var target=document.getElementById(prefix+'-'+id);
+  if(target)target.style.display='block';
+}
+
+/* ============ NEWS DATA ============ */
+var NEWS=[
+  {cat:'MARKETS',title:'RBI holds repo rate at 6.5% for sixth consecutive meeting',summary:'The Reserve Bank of India maintained its benchmark rate, citing sticky inflation and global uncertainty as key concerns.',src:'Economic Times',time:'12 min ago',ai:'Rate hold is neutral-bullish for markets. Banks may see NIM pressure short-term, but macro stability is positive for equities.',tags:['markets','india']},
+  {cat:'CRYPTO',title:'Bitcoin surges past $83,000 as institutional demand accelerates ahead of halving',summary:'Major investment firms increased BTC positions as the April halving approaches, cutting new supply by 50%.',src:'CoinDesk',time:'28 min ago',ai:'Pre-halving accumulation is historically bullish for BTC. Expect elevated volatility around the event itself.',tags:['crypto']},
+  {cat:'STOCKS',title:'Infosys raises Q4 guidance after record AI deal wins in US and Europe',summary:'Infosys lifted its full-year revenue forecast citing surging demand for AI transformation contracts from global clients.',src:'Mint',time:'45 min ago',ai:'Strong signal for IT sector. INFY guidance upgrades often trigger sector-wide re-rating. Watch TCS and Wipro next.',tags:['markets','india']},
+  {cat:'ECONOMY',title:"India's manufacturing PMI hits 8-month high of 58.1 driven by export surge",summary:'Factory activity expanded at the fastest pace in eight months, driven by strong orders from Southeast Asia.',src:'Reuters',time:'1 hr ago',ai:'PMI above 55 is very bullish for India macro. Supports GDP targets and manufacturing stocks like L&T and Thermax.',tags:['economy','india']},
+  {cat:'GLOBAL',title:'US Fed officials want more data before cutting rates, minutes show',summary:'Federal Reserve meeting minutes showed most officials see current policy as sufficiently restrictive but want to see more inflation progress.',src:'Bloomberg',time:'2 hrs ago',ai:'Higher-for-longer US rates keep pressure on EMs including India. Watch USD/INR reaction closely.',tags:['global']},
+  {cat:'STOCKS',title:'Reliance Industries hits 52-week high on Jio ARPU growth beat',summary:'Reliance shares hit ₹1,260 intraday after Jio reported record subscriber additions and 6% QoQ ARPU growth.',src:'NDTV Profit',time:'2 hrs ago',ai:'Jio ARPU expansion is the key driver. Each 1% ARPU growth adds ~₹800Cr annual revenue. Bullish long-term.',tags:['markets','india']},
+  {cat:'CRYPTO',title:'Ethereum ETF inflows hit $400M weekly high as DeFi activity rebounds sharply',summary:'US spot Ethereum ETFs recorded their best week since launch, coinciding with a sharp revival in on-chain DeFi activity.',src:'The Block',time:'3 hrs ago',ai:'ETH ETF flows lagging BTC but accelerating. DeFi revival could push ETH to outperform in Q2.',tags:['crypto']},
+  {cat:'ECONOMY',title:'India FDI inflows surge 40% in Q3 as China+1 strategy gains momentum',summary:'Foreign direct investment into India grew sharply as global companies accelerate diversification away from China.',src:'Business Standard',time:'4 hrs ago',ai:'FDI surge validates India manufacturing story. Positive for infra, logistics and industrial plays.',tags:['economy','global','india']},
+];
+
+function makeNewsCard(n){
+  return '<article class="news-card" tabindex="0" aria-label="'+n.title+'">'+
+    '<div class="nc-tag" aria-hidden="true">'+n.cat+'</div>'+
+    '<div class="nc-body">'+
+      '<div class="nc-title">'+n.title+'</div>'+
+      '<div class="nc-summary">'+n.summary+'</div>'+
+      '<div class="nc-ai"><b>🤖 AI:</b> '+n.ai+'</div>'+
+      '<div class="nc-meta"><span class="nc-src">'+n.src+'</span><span aria-hidden="true">·</span><time>'+n.time+'</time></div>'+
+    '</div>'+
+  '</article>';
+}
+
+function renderDashNews(cat){
+  var c=document.getElementById('dash-news');
+  if(!c)return;
+  var items=cat&&cat!=='top'?NEWS.filter(function(n){return n.tags.includes(cat)}):NEWS;
+  c.innerHTML=items.length?items.map(makeNewsCard).join(''):'<div class="load-state">No stories found.</div>';
+}
+function renderFullNews(cat){
+  var c=document.getElementById('full-news');
+  if(!c)return;
+  var items=cat&&cat!=='all'?NEWS.filter(function(n){return n.tags.includes(cat)||n.cat.toLowerCase()===cat}):NEWS;
+  c.innerHTML=items.length?items.map(makeNewsCard).join(''):'<div class="load-state">No stories in this category.</div>';
+}
+
+/* ============ WATCHLIST ============ */
+var WL_PRICES={
+  'BTC':{n:'Bitcoin',p:'$83,241',c:'+2.41%',up:true},
+  'ETH':{n:'Ethereum',p:'$1,921',c:'-0.82%',up:false},
+  'NIFTY':{n:'NIFTY 50',p:'22,431',c:'+1.21%',up:true},
+  'GOLD':{n:'Gold',p:'$2,912',c:'+0.61%',up:true},
+  'INFY':{n:'Infosys',p:'₹1,891',c:'+3.21%',up:true},
+  'RELIANCE':{n:'Reliance',p:'₹1,243',c:'+1.82%',up:true},
+  'SOL':{n:'Solana',p:'$134.20',c:'+4.21%',up:true},
+  'OIL':{n:'Crude Oil WTI',p:'$74.12',c:'-1.12%',up:false},
+  'TCS':{n:'Tata Consultancy',p:'₹4,021',c:'+0.91%',up:true},
+  'AAPL':{n:'Apple Inc',p:'$228.40',c:'-0.51%',up:false},
+  'NVDA':{n:'NVIDIA',p:'$124.20',c:'+2.12%',up:true},
+};
+var watchlist=JSON.parse(localStorage.getItem('mk_wl')||'["BTC","NIFTY","GOLD","INFY"]');
+
+function saveWL(){localStorage.setItem('mk_wl',JSON.stringify(watchlist))}
+
+function renderWatchlist(){
+  // full table
+  var t=document.getElementById('wl-table');
+  if(t){
+    var head='<div class="dt-thead cols4"><span>Symbol</span><span>Price</span><span>24h Change</span><span style="text-align:right">Remove</span></div>';
+    var rows=watchlist.map(function(sym){
+      var d=WL_PRICES[sym]||{n:sym,p:'--',c:'--',up:true};
+      return '<div class="dt-row cols4" tabindex="0" aria-label="'+sym+', '+d.p+', '+d.c+'">'+
+        '<div><div class="dt-sym">'+sym+'</div><div class="dt-name">'+d.n+'</div></div>'+
+        '<div class="dt-price '+(d.up?'up':'dn')+'">'+d.p+'</div>'+
+        '<div class="dt-chg '+(d.up?'up':'dn')+'">'+d.c+'</div>'+
+        '<div style="text-align:right"><button class="wl-del" onclick="removeFromWL(\''+sym+'\')" aria-label="Remove '+sym+' from watchlist">✕</button></div>'+
+      '</div>';
+    }).join('');
+    t.innerHTML=watchlist.length?head+rows:head+'<div class="load-state">Your watchlist is empty. Add symbols above.</div>';
+  }
+
+  // right panel mini
+  var rp=document.getElementById('rp-watchlist');
+  if(rp){
+    rp.innerHTML=watchlist.slice(0,5).map(function(sym){
+      var d=WL_PRICES[sym]||{n:sym,p:'--',c:'--',up:true};
+      return '<div class="wl-row" tabindex="0" role="row" aria-label="'+sym+' '+d.p+' '+d.c+'">'+
+        '<div><div class="wl-sym">'+sym+'</div><div class="wl-name">'+d.n+'</div></div>'+
+        '<div style="text-align:right"><div class="wl-price">'+d.p+'</div><div class="wl-chg '+(d.up?'up':'dn')+'">'+d.c+'</div></div>'+
+      '</div>';
+    }).join('');
+    if(!watchlist.length)rp.innerHTML='<div style="padding:12px;font-size:11px;color:var(--text-faint);text-align:center">No assets. <button onclick="gotoPage(\'watchlist\',null)" style="color:var(--green);background:none;border:none;cursor:pointer;font-family:var(--body);font-size:11px">Add symbols →</button></div>';
+  }
+}
+
+function addToWatchlist(){
+  var inp=document.getElementById('wlInput');
+  var sym=(inp.value||'').trim().toUpperCase().replace(/[^A-Z0-9/.]/g,'');
+  if(!sym||watchlist.includes(sym)){inp.value='';return}
+  watchlist.push(sym);saveWL();inp.value='';renderWatchlist();
+}
+
+function removeFromWL(sym){
+  watchlist=watchlist.filter(function(s){return s!==sym});
+  saveWL();renderWatchlist();
+}
+
+/* ============ TRENDING ============ */
+var TRENDING=['#RBI Rate Hold','#Bitcoin Halving','#Infosys Q4 Beat','#India PMI 58.1','#Fed Minutes','#Reliance 52W High','#ETH ETF Inflows','#India FDI Surge'];
+var tb=document.getElementById('trending-box');
+if(tb){
+  tb.innerHTML=TRENDING.map(function(t){
+    return '<div role="button" tabindex="0" style="font-size:12px;color:var(--text-muted);padding:6px 8px;border-radius:6px;cursor:pointer;transition:all 0.15s;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.background=\'var(--s2)\';this.style.color=\'var(--green)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'">'+t+'<span style="font-family:var(--mono);font-size:9px;color:var(--text-faint)">↗</span></div>';
+  }).join('');
+}
+
+/* ============ AI ============ */
+function askAI(q){
+  var inp=document.getElementById('aiInput');
+  var question=q||(inp?inp.value.trim():'');
+  if(!question)return;
+  if(inp)inp.value='';
+  if(currentPage!=='ai')gotoPage('ai',null);
+
+  var hist=document.getElementById('ai-history');
+  hist.innerHTML+='<div class="msg-user" role="note" aria-label="Your question: '+question+'"><strong>You:</strong> '+question+'</div>';
+  var lid='l'+Date.now();
+  hist.innerHTML+='<div class="msg-loading" id="'+lid+'" aria-live="polite"><div class="spinner"></div> <span>Analysing<span class="dot-anim"><span>.</span><span>.</span><span>.</span></span></span></div>';
+  hist.scrollTop=hist.scrollHeight;
+
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:'You are Markit AI, a market intelligence assistant. Give clear, concise, actionable analysis. Keep it under 120 words. Use plain English — no jargon. Question: '+question}]}]})
+  }).then(function(r){return r.json()}).then(function(d){
+    var txt=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts[0])?d.candidates[0].content.parts[0].text:'AI unavailable. Check your Gemini API key.';
+    var el=document.getElementById(lid);
+    if(el)el.outerHTML='<div class="msg-bot" role="note" aria-label="AI response"><b>🤖 Markit AI:</b> '+txt+'</div>';
+    hist.scrollTop=hist.scrollHeight;
+  }).catch(function(){
+    var el=document.getElementById(lid);
+    if(el)el.outerHTML='<div class="msg-bot" style="border-color:rgba(255,0,68,0.15)" role="alert">⚠️ AI unavailable. Add Anthropic credits at console.anthropic.com to enable analysis.</div>';
+  });
+}
+
+function askFromMini(v){
+  document.getElementById('aiInput').value=v;
+  askAI();
+}
+
+/* ============ INIT ============ */
+renderDashNews();
+renderFullNews();
+renderWatchlist();
+</script>
+</body>
+</html>
